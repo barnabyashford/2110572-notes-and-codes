@@ -1,1190 +1,171 @@
-Page 1:
-+
-Language Modeling
-2110572: Natural Language Processing Systems
-Assoc. Prof. Peerapon Vateekul, Ph.D.
-Department of Computer Engineering, 
-Faculty of Engineering, Chulalongkorn University
-Peerapon.v@chula.ac.th
-Credits to: Aj.Ekapol & TA team (TA.Pluem, TA.Knight, and all TA alumni) 
+# Language Modeling
 
-Page 2:
-+ Outline
-2
-■Introduction
-■N-grams
-■Evaluation and Perplexity
-■Smoothing
-■Neural Language Model
+A language model assigns probability to a sentence, or predict next word.
 
-Page 3:
-+
-Introduction
-3
+## Probability
 
-Page 4:
-+ Introduction
-■Language Model (or Probabilistic Language Model for this course) ’s goal is 
-(1) to assign probability to a sentence, or 
-(2) to predict the next word
-■“Do you live in Bangkok?” and “Live in Bangkok do you?”
-■Which sentence is more likely to occur?
-4
-“… the problem is to predict the next word given the previous 
-words. The task is fundamental to speech or optical character 
-recognition and is also used for spelling correction, handwriting 
-recognition, and statistical machine translation.”
-— Page 191, Foundations of Statistical Natural Language Processing, 1999.
-Maximal matching = 3
-We need to verify with Language Model (LM)
+We intuitively calculate probability of a sentence using the following concept:
 
-Page 5:
-+ Introduction (cont.)
-■Application
-■1) Text Generation
-■Generating new article headlines
-■Generating new sentences, paragraphs, 
-or documents
-■Generating suggested continuation of a 
-sentence
-■For example: The Pollen Forecast for 
-Scotland system [Perara R., ECAL2006]
-■Given six numbers of predicted pollen 
-levels in different parts of Scotland
-■The system generates a short textual 
-summary of pollen levels
-■
-https://en.wikipedia.org/wiki/Natural_language_generation
-■2) Machine Translation
-■3) Speech Recognition
-5
-Grass pollen levels for Friday have increased from the moderate to high levels of 
-yesterday with values of around 6 to 7 across most parts of the country. However, 
-in Northern areas, pollen levels will be moderate with values of 4. [as of 1-July-
-2005]
+- Conditional Probability
 
-Page 6:
-+ Introduction (cont.)
-■How to compute this sentence probability?
-■S = “It was raining cat and dog yesterday”
-■What is P(S)?
-6
+```math
+P(B \mid A) = \frac{P(A,B)}{P(A)}
+```
 
-Page 7:
-+ Introduction (cont.)
-■
-Conditional Probability and Chain Rule
-■
-Do you still remembe ?
-■
-Chain Rule:
-■
-Now, we can write P(It, was, raining, cat, and, dog, yesterday) as :
-■
-P(it) × P(was | it) × P(raining | it was) × P(cats | it was raining) × P(and | it was 
-raining cats) × P(dogs | it was raining cats and) × P(yesterday | it was raining cats 
-and dogs)
-7
+```math
+P(A,B) = P(B \mid A) \times P(A)
+```
 
-Page 8:
-+ Problem with full estimation
-■
-Language is creative.
-■
-New sentences are created all the time.
-■
-...and we won’t be able to count all of them
-8
-Training:
-<s> I am a student . </s>
-<s> I live in Bangkok . </s>
-<s> I like to read . </s>
-Test:
-<s> I am a teacher . </s>
-→ P(teacher|<s> I am a) = 0
-→ P(<s> I am a teacher . </s>) = 0
+- Chain Rule
 
-Page 9:
-+
-N-grams
-9
+```math
+P(A,B,C,D) = P(A) \times P(A \mid B) \times P(C \mid A,B) \times P(C \mid A,B,C)
+```
 
-Page 10:
-+ N-grams: a probability of next word
-■Markov Assumption
-■Markov models are the class of probabilistic models that assume we can predict the 
-probability of some future unit (next word) without looking too far into the past
-■In other word, we can approximate our conditions to unigram, bigrams, trigrams or n-
-grams
-■E.g.,  Bi-grams 
-■P(F | A, B, C, D, E) ~ P(F| E)
-■P(class | There, are, ten, students, in, the) 
-■Unigrams ~ P( class )
-■Bigrams ~ P(class | the)
-■Trigrams ~ P(class | in the)
-10
-There are ten students in the class.
+Full estimation has its limitation:
+- There will always be new sentences
 
-Page 11:
-+ N-grams (cont.): a probability of the whole 
-sentence
-■Now, we can write our sentence probability using Chain rule (full estimation)
-= P(it, was, raining, cats, and, dogs, yesterday)
-= P(it) x P(was | it) x P(raining | it was) x P(cats | it was raining) x P(and | it was raining cats) x 
-P(dogs | it was raining cats and) x P(yesterday | it was raining cats and dogs) 
-■And, with Markov assumption (tri-grams)
-= P(it, was, raining, cats, and, dogs, yesterday) = 
-= P(it) x P(was | it) x P(raining | it was) x P(cats |was raining) x P(and | raining cats) x P(dogs 
-| cats and) x P(yesterday | and dogs)
-11
+## N-grams
 
-Page 12:
-+ N-grams (cont.): a probability of the whole 
-sentence – Start & Stop
-■And, with Markov assumption (tri-grams)
-= P(it, was, raining, cats, and, dogs, yesterday) = 
-= P(it) x P(was | it) x P(raining | it was) x P(cats |was raining) x P(and | raining cats) x P(dogs 
-| cats and) x P(yesterday | and dogs)
-■And, with Markov assumption (tri-grams) with start & stop
-= P(<s>, it, was, raining, cats, and, dogs, yesterday, </s>) = 
-= P(<s>) x P(it|<s>) x P(was | <s> it) x P(raining | it was) x P(cats |was raining) x P(and | 
-raining cats) x P(dogs | cats and) x P(yesterday | and dogs) x P(</s>| dogs yesterday)
-■
-Start tokens give context for start of the sentence
-■
-End tokens give an end to the sentence for language generation (sample till 
-end token)
-■
-P(<s>) is always 1.
-12
+A way to language modeling based on **Markov Assumption**: probability of some future unit (next word) without looking too far into the past.
 
-Page 13:
-+ N-grams (cont.): Example of Bigrams Prob.
-■Estimating Bigrams Probability
-■Assume there are three documents
-■<s> I am Sam </s>
-■<s> Sam I am </s>
-■<s> I am not Sam </s>
-13
-From : https://web.stanford.edu/class/cs124/ by Dan Jurafsky
-Bigrams Unit
-Bigrams Probability
-P( I | <s> )
-= 2/3 = 0.67
-P ( am |I )
-= 3/3 =1.0
-P ( Sam| am)
-= 1/3 = 0.33
-P (</s> | Sam )
-= 2/3 =0.67
-P (  Sam | <s>)
-= 1/3 =0.33
-P ( I| Sam )
-= 1/3 =0.33
-P (</s> | am )
-= 1/3 =0.33
-P ( not| am)
-= 1/3 =0.33
-P (Sam | not)
-= 1/1 =1.0
+**unigram, bigrams, trigrams or n-
+grams**
 
-Page 14:
-+ N-grams (cont.): Example
-14
-From : https://web.stanford.edu/class/cs124/ by Dan Jurafsky
-Bigrams Unit
-Bigrams Probability
-P( I | <s> )
-= 2/3 = 0.67
-P ( am |I )
-= 3/3 =1.0
-P ( Sam| am)
-= 1/3 = 0.33
-P (</s> | Sam )
-= 2/3 =0.67
-P (  Sam | <s>)
-= 1/3 =0.33
-P ( I| Sam )
-= 1/3 =0.33
-P (</s> | am )
-= 1/3 =0.33
-P ( not| am)
-= 1/3 =0.33
-P (Sam | not)
-= 1/1 =1.0
-Bigrams Unit
-Bigrams Probability
-P( I | <s> )
-= 2/3 = 0.67
-P ( am |I )
-= 3/3 =1.0
-P ( Sam| am)
-= 1/3 = 0.33
-P (</s> | Sam )
-= 2/3 =0.67
-P(<s>, I, am, Sam, </s>)
-= 0.148137
-P (  Sam | <s>)
-= 1/3 =0.33
-P ( I| Sam )
-= 1/3 =0.33
-P ( am |I )
-= 3/3 =1.0
-P (</s> | am )
-= 1/3 =0.33
-P(<s>, Sam, I, am , </s>)
-= 0.035937
-P( I | <s> )
-= 2/3 = 0.67
-P ( am |I )
-= 3/3 =1.0
-P ( not| am)
-= 1/3 =0.33
-P (Sam | not)
-= 1/1 =1.0
-P (</s> | Sam )
-= 2/3 =0.67
-P(<s>, I, am, not, Sam, </s>)
-= 0.148137
-■Estimating Bigrams Probability
-■<s> I am Sam </s>
-■<s> Sam I am </s>
-■<s> I am not Sam </s>
+```math
+P(w_{i} \mid w_{i-1}) = \frac{c(w_{i-1},w_{i})}{c(w_{i-1})}
+```
 
-Page 15:
-+ N-grams (cont.): Counting table
-assume on real data
-■Estimating N-grams Probability
-■Uni-gram counting
-■Bi-grams counting (column given row)
-■“i want” →c(prev, cur) = c(wi-1, wi) = c(want, i) = 827
-15
-From : https://web.stanford.edu/class/cs124/ by Dan Jurafsky
-i
-want
-to 
-eat
-chinese
-food
-lunch
-spend
-2533
-927
-2417
-746
-158
-1093
-341
-278
-i
-want
-to 
-eat
-chinese
-food
-lunch
-spend
-i
-5
-827
-0
-9
-0
-0
-0
-2
-want
-2
-0
-608
-1
-6
-6
-5
-1
-to
-2
-0
-4
-686
-2
-0
-6
-211
-eat
-0
-0
-2
-0
-16
-2
-42
-0
-chinese
-1
-0
-0
-0
-0
-82
-1
-0
-food
-15
-0
-15
-0
-1
-4
-0
-0
-lunch
-2
-0
-0
-0
-0
-1
-0
-0
-spend
-1
-0
-1
-0
-0
-0
-0
-0
-prev
-curr
+We do everything in log space  $( \ln (P(S)) )$ to
 
-Page 16:
-+ N-grams (cont.): Bi-grams probability table
-tables
-■Estimating N-grams Probability
-■Divided by Unigram 
-16
-From : https://web.stanford.edu/class/cs124/ by Dan Jurafsky
-P(<s>,I, eat, Chinese, food,</s>) = 1*0.0036*0.021*0.52*0.5 = 1.9 x 10-5
-P(<s>,I, spend, to, lunch,</s>) = 1*0.00079*0.0036*0.0025*0.5 = 3.5 x 10-9
-Assume P(I|<s>)=1, P(</s>|food)=0.5, P(</s>|lunch)=0.5
-i
-want
-to 
-eat
-chinese
-food
-lunch
-spend
-i
-0.002
-0.33
-0
-0.0036
-0
-0
-0
-0.00079
-want
-0.0022
-0
-0.66
-0.0011
-0.0065
-0.0065
-0.0054
-0.0011
-to
-0.00083
-0
-0.0017
-0.28
-0.00083
-0
-0.0025
-0.087
-eat
-0
-0
-0.0027
-0
-0.021
-0.0027
-0.056
-0
-chinese
-0.0063
-0
-0
-0
-0
-0.52
-0.0063
-0
-food
-0.014
-0
-0.014
-0
-0.00092
-0.0037
-0
-0
-lunch
-0.0059
-0
-0
-0
-0
-0.0029
-0
-0
-spend
-0.0036
-0
-0.0036
-0
-0
-0
-0
-0
-i
-want
-to 
-eat
-chinese
-food
-lunch
-spend
-2533
-927
-2417
-746
-158
-1093
-341
-278
-i
-want
-to 
-eat
-chinese
-food
-lunch
-spend
-i
-5
-827
-0
-9
-0
-0
-0
-2
-want
-2
-0
-608
-1
-6
-6
-5
-1
-to
-2
-0
-4
-686
-2
-0
-6
-211
-eat
-0
-0
-2
-0
-16
-2
-42
-0
-chinese
-1
-0
-0
-0
-0
-82
-1
-0
-food
-15
-0
-15
-0
-1
-4
-0
-0
-lunch
-2
-0
-0
-0
-0
-1
-0
-0
-spend
-1
-0
-1
-0
-0
-0
-0
-0
-Sentence = “i want” & curr = “want”, prev = “i” 
-p(want | i) = p(i, want) / p(i) = 827 / 2533 = 0.33
+- Avoid underflow (numbers too small)
+- Also, adding is faster than multiplying
 
-Page 17:
-+ N-grams (cont.): Log likelihood
-■We do everything in log space  ( ln(P(S)) ) to
-■Avoid underflow (numbers too small)
-■Also, adding is faster than multiplying
-17
+```math
+\ln (P(A,B,C,D)) = \ln (P(A)) + \ln (P(B \mid A)) + \ln (P(C \mid A,B)) + \ln (P(D \mid A,B,C))
+```
 
-Page 18:
-+
-Evaluation
-Which model is better?
-19
+## Evaluation
 
-Page 19:
-+ Evaluation
-■We train our model on a training set.
-■We test the model’s performance on data we haven’t seen.
-■A test set is an unseen dataset that is different from our training set, totally unused.
-■An evaluation metric tells us how well our model does on the test set.
-■Sometimes, we allocate some training set to create a validation set
-■Which is a pseudo-test set, so we can tune performance
-20
+**Extrinsic Evaluation**:
 
-Page 20:
-+ Evaluation 
-■
-Extrinsic Evaluation:
-■
-Measure the performance of a downstream task (e.g. spelling correction, machine 
+- Measure the performance of a downstream task (e.g. spelling correction, machine 
 translation, etc.)
-■
-Cons: Time-consuming
-■
-Intrinsic Evaluation:
-■
-Evaluate the performance of a language model on a hold-out dataset (test set)
-■
-Perplexity!
-■
-Cons: An intrinsic improvement does not guarantee an improvement of a 
+- Cons: Time-consuming
+
+**Intrinsic Evaluation**:
+
+- Evaluate the performance of a language model on a hold-out dataset (test set): **Perplexity**!
+- Cons: An intrinsic improvement does not guarantee an improvement of a 
 downstream task, but perplexity often correlates with such improvements
-■
-Improvement in perplexity should be confirmed by an evaluation of a real task
-21
 
-Page 21:
-+ Perplexity (1)
-22
-■
-Perplexity is a quick evaluation metric for language models.
-■
-A better language model is one that assigns a higher probability to the test set
-■
-Perplexity can be seen a normalized version of the probability of the test set
+> Improvement in perplexity should be confirmed by an evaluation of a real task
 
-Page 22:
-+ Perplexity (2)
-■
-Perplexity is the inverse probability of the test set, normalized by the number of words:
-■
-Minimizing it is the same as maximizing probability
-■
-Lower perplexity is better!
-23
-P(<s>,I, eat, Chinese, food,</s>) = 1*0.0036 * 0.021 * 0.52*0.5 = 1.9 x 10-5
-P(<s>,I, spend, to, lunch,</s>) = 1*0.00079*0.0036*0.0025*0.5 = 3.5 x 10-9
+### Perplexity
 
-Page 23:
-+ Perplexity (3)
-■
-Perplexity:
-■
-Logarithmic Version:
-■
-Logarithmic Version Intuition:
-■
-The exponent is number of bits to encode each word  
-24
+Perplexity is a quick evaluation metric for language models. I is the inverse probability of the test set, normalized by the number of words:
 
-Page 24:
-+ Perplexity (4): Intuition of Perplexity
-■
-Perplexity as branching factor:
-■
-number of possible next words that can follow any word
-■
-Average branching factor:
-■
-Consider the task of recognizing a string of random digits of length N, given that 
-each of the 10 digits (0-9) occurs with equal probability.
-■
-How hard is this task?
-25
-Note:
-Each of the digits occurs with equal 
-probability: P = 1/10
-10 times
+```math
+PP(W) = \sqrt[N]{\prod_{i = 1}^{N} \frac{1}{P(w_{i} \mid w_1 \dots w_{i-1})}}
+```
 
-Page 25:
-Perplexity example
-Perplexity is related to vocabulary size. 
-Comparing perplexity between different vocabulary size is unfair!
+- Logarithmic Version:
 
-Page 26:
-+ Perplexity (5): PP(W) of “I eat chinese food”
-Bi-grams
-■
-Perplexity:                                                                  or after taking log:
-■
-PP(<s>,I,eat,Chinese,food,</s>)
-■
-= 
-■
-= 
-■
-=    8.74
-28
-i
-want
-to 
-eat
-chinese
-food
-lunch
-spend
-i
-0.002
-0.33
-0
-0.0036
-0
-0
-0
-0.00079
-want
-0.0022
-0
-0.66
-0.0011
-0.0065
-0.0065
-0.0054
-0.0011
-to
-0.00083
-0
-0.0017
-0.28
-0.00083
-0
-0.0025
-0.087
-eat
-0
-0
-0.0027
-0
-0.021
-0.0027
-0.056
-0
-chinese
-0.0063
-0
-0
-0
-0
-0.52
-0.0063
-0
-food
-0.014
-0
-0.014
-0
-0.00092
-0.0037
-0
-0
-lunch
-0.0059
-0
-0
-0
-0
-0.0029
-0
-0
-spend
-0.0036
-0
-0.0036
-0
-0
-0
-0
-0
-Assume P(I|<s>)=1, P(</s>|food)=0.5, P(</s>|lunch)=0.5
+```math
+b^{-\frac{1}{N} \sum_{i = 1}^{N} \log_{b} (P(w_{i} \mid w_1 \dots w_{i-1}))}
+```
 
-Page 27:
-+ Smoothing
-Motivation: Zeros and Unknown words
-29
+- As we work on log likelihood
 
-Page 28:
-+ Zeros
-●
-Zeros 
-○
-Things that don’t occur in the training set 
-○
-but occur in the test set
-○
-and it is still in vocab lists.
-P(BNK48| is into) = 0
-30
-Test set:
-… is into BNK48
-… is into ping-pong
-Training set:
-… is into health
-… is into food
-… is into fashion
-… is into yoga
+```math
+e^{-\frac{1}{N} \sum_{i = 1}^{N} \ln (P(w_{i} \mid w_1 \dots w_{i-1}))}
+```
 
-Page 29:
-+ Zeros (cont.)
-●
-P(BNK48| is into) = 0
-●
-n-grams with zero probability
-○
-mean that we will assign 0 probability to the test set!
-●
-We cannot compute perplexity
-○
-division by zero (/0)
-31
+```math
+\text{Lower perplexity is better!}
+```
 
-Page 30:
-+ Unknown words (UNK)
-■Words we have never seen before in training set and not in vocab list
-■Sometimes call OOV (out of vocabulary) words
-■There are ways to deal with this problem
-■1) Assign it as a probability of normal word
-■Step1) Create a set of vocabulary with minimum frequency threshold
-■This is fixed in advance.
-■Or from top n frequency
-■Or words that have frequency more than 1,2,..,v
-■Step2) Convert any words in training and testing that is not in this predefined set 
-■to ‘UNK’ token.
-■Simply, deal with UNK word as a normal word
-■2) Or just define probability of UNK word with constant value
-32
-However, this still cannot solve the zero issue.
-i
-want
-to 
-eat
-chinese
-food
-lunch
-spend
-i
-0.002
-0.33
-0
-0.0036
-0
-0
-0
-0.00079
-want
-0.0022
-0
-0.66
-0.0011
-0.0065
-0.0065
-0.0054
-0.0011
-to
-0.00083
-0
-0.0017
-0.28
-0.00083
-0
-0.0025
-0.087
-eat
-0
-0
-0.0027
-0
-0.021
-0.0027
-0.056
-0
-chinese
-0.0063
-0
-0
-0
-0
-0.52
-0.0063
-0
-food
-0.014
-0
-0.014
-0
-0.00092
-0.0037
-0
-0
-lunch
-0.0059
-0
-0
-0
-0
-0.0029
-0
-0
-spend
-0.0036
-0
-0.0036
-0
-0
-0
-0
-0
+## Smoothing
 
-Page 31:
-+
-Smoothing Techniques
-33
+Problems with dealing with probability.
 
-Page 32:
-+ Smoothing
-■Our training data is very sparse, sometimes we cannot find the n-grams (0) that we 
-want.
-■In some cases where we do not even have a unigram (a word or OOV), we will use “UNK” 
-token instead
-■Notable smoothing techniques
-■Add-one estimation (or Laplace smoothing)
-■Back-off
-■Interpolation
-■Kneser–Ney Smoothing 
-34
-ln(0) is undefined!
-i
-want
-to 
-eat
-chinese
-food
-lunch
-spend
-i
-0.002
-0.33
-0
-0.0036
-0
-0
-0
-0.00079
-want
-0.0022
-0
-0.66
-0.0011
-0.0065
-0.0065
-0.0054
-0.0011
-to
-0.00083
-0
-0.0017
-0.28
-0.00083
-0
-0.0025
-0.087
-eat
-0
-0
-0.0027
-0
-0.021
-0.0027
-0.056
-0
-chinese
-0.0063
-0
-0
-0
-0
-0.52
-0.0063
-0
-food
-0.014
-0
-0.014
-0
-0.00092
-0.0037
-0
-0
-lunch
-0.0059
-0
-0
-0
-0
-0.0029
-0
-0
-spend
-0.0036
-0
-0.0036
-0
-0
-0
-0
-0
+### Zeros
 
-Page 33:
-+ Smoothing#1: Add-one estimation 
-35
-From : https://web.stanford.edu/class/cs124/ by Dan Jurafsky
-i
-want
-to 
-eat
-chinese
-food
-lunch
-spend
-i
-5
-827
-0
-9
-0
-0
-0
-2
-want
-2
-0
-608
-1
-6
-6
-5
-1
-to
-2
-0
-4
-686
-2
-0
-6
-211
-eat
-0
-0
-2
-0
-16
-2
-42
-0
-chinese
-1
-0
-0
-0
-0
-82
-1
-0
-food
-15
-0
-15
-0
-1
-4
-0
-0
-lunch
-2
-0
-0
-0
-0
-1
-0
-0
-spend
-1
-0
-1
-0
-0
-0
-0
-0
-i
-want
-to 
-eat
-chinese
-food
-lunch
-spend
-i
-6
-828
-1
-10
-1
-1
-1
-3
-want
-3
-1
-609
-2
-7
-7
-6
-2
-to
-3
-1
-5
-687
-3
-1
-7
-212
-eat
-1
-1
-3
-1
-17
-3
-43
-1
-chinese
-2
-1
-1
-1
-1
-83
-2
-1
-food
-16
-1
-16
-1
-2
-5
-1
-1
-lunch
-3
-1
-1
-1
-1
-2
-1
-1
-spend
-2
-1
-2
-1
-1
-1
-1
-1
-■Add-one estimation (or Laplace smoothing)
-■We add one to all the n-grams counts
-■For bigram, where V is the number of unique words in the corpus:
+combinations that appear in the test set, but not in training set (each word still in the vocab list).
 
-Page 34:
-+ Smoothing#1: Add-one estimation (cont.)
-■Add-one estimation (or Laplace smoothing)
-■Pros
-■Easiest to implement
-■Cons
-■Usually perform poorly compared to other techniques
-■The probabilities change a lot if there are too many zeros n-grams
-■useful in domains where the number of zeros isn’t so huge
-36
+### Unknown words (UNK)
 
-Page 35:
-+
-■Use less context for contexts you don’t know about
-■Backoff
-■use only the best available n-grams if you have good evidence
-■otherwise backoff!
-■Example:
-■Tri-gram > Bi-grams > Unigram
-■Continue until we get some counts
-37
-Smoothing#2: Backoff
+Words we have never seen before in training set and not in vocab list (OOV (out of vocabulary)). Here are some ways to deal with this problem:
 
-Page 36:
-+ Smoothing#3: Interpolation
-38
-■
-Interpolation
-■
-mix unigram, bigram, trigram
-■
-Where C is a constant, often (1/vocabulary) in corpus
-■
-𝜆is chosen from testing on validation data set, and the summation of 𝜆i is 1 (Σ𝜆i=1)
+#### Assign it as a probability of normal word
+
+1. Create a set of vocabulary with minimum frequency threshold
+  - This is fixed in advance.
+  - Or from top n frequency
+  - Or words that have frequency more than 1,2,..,v
+
+2. Convert any words in training and testing that is not in this predefined set
+  - to ‘UNK’ token.
+  - Simply, deal with UNK word as a normal word
+
+```math
+P(UNK) = \frac{wc(UNK_{freq = 1})}{wc(total)}
+```
+
+#### Or just define probability of UNK word with constant value
+
+For example:
+
+```math
+P(UNK) = \frac{1}{total \  vocb}
+```
+
+> **However, this still cannot solve the zero issue.**
+
+### Add-one estimation 
+
+Add-one estimation (or **Laplace smoothing**)
+- We add one to all the n-grams counts
+- For bigram, where V is the number of unique words in the corpus:
+
+```math
+P(S) = \frac{c(w_{i}, w_{i = 1}) + 1}{c(w_{i = 1}) + V}
+```
+
+**Pros**
+
+- Easiest to implement
+
+**Cons**
+
+- Usually perform poorly compared to other techniques
+- The probabilities change a lot if there are too many zeros n-grams
+  - useful in domains where the number of zeros isn’t so huge
+
+### Backoff
+
+**Key Idea**: 
+
+- Use less context for contexts you don’t know about
+- Use only the best available n-grams if you have good evidence
+- otherwise backoff!
+
+**Example**:
+
+```math
+\text{Tri-gram} \rightarrow \text{Bi-grams} \rightarrow \text{Unigram}
+```
+
+### Interpolation
+
+Key Idea: mix unigram, bigram, trigram
+
+```math
+\hat{P}(w_{n} \mid w_{n-2} w_{n-1}) = \lambda_{3} P(w_{n} \mid w_{n-2} w_{n-1}) + \lambda_{2} P(w_{n} \mid w_{n-1}) \lambda_{1} P(w_{n}) + \lambda_{0} P(UNK)
+```
+
+> $\lambda$ is chosen from testing on validation data set, and the summation of $\lambda_{i}$ is 1 $(\sum \lambda_{i} = 1)$
+
 ■
 Interpolation is like merging several models
 
